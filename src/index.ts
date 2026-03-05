@@ -1,13 +1,17 @@
+import AgentAPI from "apminsight";
+AgentAPI.config();
 
 import express from "express";
 import cors from "cors";
 
 import subjectsRouter from "./routes/subjects.js";
+/*
 import usersRouter from "./routes/users.js";
 import classesRouter from "./routes/classes.js";
 import departmentsRouter from "./routes/departments.js";
 import statsRouter from "./routes/stats.js";
 import enrollmentsRouter from "./routes/enrollments.js";
+ */
 
 import securityMiddleware from "./middleware/security.js";
 //import { auth } from "./lib/auth.js";
