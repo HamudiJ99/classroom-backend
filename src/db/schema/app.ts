@@ -10,7 +10,7 @@ import {
     unique,
     varchar,
 } from "drizzle-orm/pg-core";
-import { user } from "./auth.js";
+import { user } from "./auth";
 
 export type Schedule = {
     day: string;
