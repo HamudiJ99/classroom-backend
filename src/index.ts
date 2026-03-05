@@ -1,68 +1,48 @@
-import express, { Request, Response } from 'express';
-import { eq } from 'drizzle-orm';
-// The 'pool' export will only exist for WebSocket and node-postgres drivers
-// Since we use neon-http, we only import index
-import { db } from './index';
-import { demoUsers } from './db/schema';
+
+import express from "express";
+import cors from "cors";
+
+import subjectsRouter from "./routes/subjects.js";
+import usersRouter from "./routes/users.js";
+import classesRouter from "./routes/classes.js";
+import departmentsRouter from "./routes/departments.js";
+import statsRouter from "./routes/stats.js";
+import enrollmentsRouter from "./routes/enrollments.js";
+
+// import securityMiddleware from "./middleware/security.js";
+//import { auth } from "./lib/auth.js";
 
 const app = express();
-const port = 8000;
+const PORT = 8000;
+
+app.use(
+    cors({
+      origin: process.env.FRONTEND_URL, // React app URL
+      methods: ["GET", "POST", "PUT", "DELETE"], // Specify allowed HTTP methods
+      credentials: true, // allow cookies
+    })
+);
+
+/*
+app.all("/api/auth/*splat", toNodeHandler(auth));
+*/
 
 app.use(express.json());
 
-app.get('/', (req: Request, res: Response) => {
-    res.send('Hello from the Classroom Backend!');
+// app.use(securityMiddleware);
+
+app.use("/api/subjects", subjectsRouter);
+/*app.use("/api/users", usersRouter);
+app.use("/api/classes", classesRouter);
+app.use("/api/departments", departmentsRouter);
+app.use("/api/stats", statsRouter);
+app.use("/api/enrollments", enrollmentsRouter);
+*/
+
+app.get("/", (req, res) => {
+  res.send("Backend server is running!");
 });
 
-async function runDemo() {
-  try {
-    console.log('Performing CRUD operations...');
-
-    // CREATE: Insert a new user
-    const [newUser] = await db
-      .insert(demoUsers)
-      .values({ name: 'Admin User', email: `admin-${Date.now()}@example.com` })
-      .returning();
-
-    if (!newUser) {
-      throw new Error('Failed to create user');
-    }
-    
-    console.log('✅ CREATE: New user created:', newUser);
-
-    // READ: Select the user
-    const foundUser = await db.select().from(demoUsers).where(eq(demoUsers.id, newUser.id));
-    console.log('✅ READ: Found user:', foundUser[0]);
-
-    // UPDATE: Change the user's name
-    const [updatedUser] = await db
-      .update(demoUsers)
-      .set({ name: 'Super Admin' })
-      .where(eq(demoUsers.id, newUser.id))
-      .returning();
-    
-    if (!updatedUser) {
-      throw new Error('Failed to update user');
-    }
-    
-    console.log('✅ UPDATE: User updated:', updatedUser);
-
-    // DELETE: Remove the user
-    await db.delete(demoUsers).where(eq(demoUsers.id, newUser.id));
-    console.log('✅ DELETE: User deleted.');
-
-    console.log('\nCRUD operations completed successfully.');
-  } catch (error) {
-    console.error('❌ Error performing CRUD operations:', error);
-  }
-}
-
-// Add a route to trigger the demo
-app.get('/demo', async (req: Request, res: Response) => {
-  await runDemo();
-  res.json({ message: 'Demo executed. Check logs.' });
-});
-
-app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });
