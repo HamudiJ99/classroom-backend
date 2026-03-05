@@ -7,9 +7,16 @@ import {
     pgTable,
     text,
     timestamp,
+    unique,
     varchar,
 } from "drizzle-orm/pg-core";
-//import { user } from "./auth.js";
+import { user } from "./auth.js";
+
+export type Schedule = {
+    day: string;
+    startTime: string;
+    endTime: string;
+};
 
 const timestamps = {
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -18,13 +25,13 @@ const timestamps = {
         .$onUpdate(() => new Date())
         .notNull(),
 };
-/*
+
 export const classStatusEnum = pgEnum("class_status", [
     "active",
     "inactive",
     "archived",
 ]);
-*/
+
 export const departments = pgTable("departments", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     code: varchar("code", { length: 50 }).notNull().unique(),
@@ -48,9 +55,8 @@ export const subjects = pgTable("subjects", {
     ...timestamps,
 });
 
-/*
 export const classes = pgTable(
-    "classes",
+    "class",
     {
         id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
 
@@ -65,21 +71,21 @@ export const classes = pgTable(
         name: varchar("name", { length: 255 }).notNull(),
         bannerCldPubId: text("banner_cld_pub_id"),
         bannerUrl: text("banner_url"),
-        capacity: integer("capacity").notNull().default(50),
         description: text("description"),
+        capacity: integer("capacity").notNull().default(50),
         status: classStatusEnum("status").notNull().default("active"),
         schedules: jsonb("schedules").$type<Schedule[]>().notNull(),
 
         ...timestamps,
     },
     (table) => ({
-        subjectIdIdx: index("classes_subject_id_idx").on(table.subjectId),
-        teacherIdIdx: index("classes_teacher_id_idx").on(table.teacherId),
+        subjectIdIdx: index("class_subject_id_idx").on(table.subjectId),
+        teacherIdIdx: index("class_teacher_id_idx").on(table.teacherId),
     })
 );
 
 export const enrollments = pgTable(
-    "enrollments",
+    "enrollment",
     {
         id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
 
@@ -93,15 +99,15 @@ export const enrollments = pgTable(
         ...timestamps,
     },
     (table) => ({
-        studentIdIdx: index("enrollments_student_id_idx").on(table.studentId),
-        classIdIdx: index("enrollments_class_id_idx").on(table.classId),
-        studentClassUnique: index("enrollments_student_class_unique").on(
+        studentIdIdx: index("enrollment_student_id_idx").on(table.studentId),
+        classIdIdx: index("enrollment_class_id_idx").on(table.classId),
+        studentClassUnique: unique("enrollment_student_class_unique").on(
             table.studentId,
             table.classId
         ),
     })
 );
-*/
+
 export const departmentsRelations = relations(departments, ({ many }) => ({
     subjects: many(subjects),
 }));
@@ -114,7 +120,6 @@ export const subjectsRelations = relations(subjects, ({ one, many }) => ({
     classes: many(classes),
 }));
 
-/*
 export const classesRelations = relations(classes, ({ one, many }) => ({
     subject: one(subjects, {
         fields: [classes.subjectId],
@@ -138,20 +143,14 @@ export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
     }),
 }));
 
+export type Department = typeof departments.$inferSelect;
+export type NewDepartment = typeof departments.$inferInsert;
 
-
-
+export type Subject = typeof subjects.$inferSelect;
+export type NewSubject = typeof subjects.$inferInsert;
 
 export type Class = typeof classes.$inferSelect;
 export type NewClass = typeof classes.$inferInsert;
 
 export type Enrollment = typeof enrollments.$inferSelect;
 export type NewEnrollment = typeof enrollments.$inferInsert;
-
-*/
-
-export type Department = typeof departments.$inferSelect;
-export type NewDepartment = typeof departments.$inferInsert;
-
-export type Subject = typeof subjects.$inferSelect;
-export type NewSubject = typeof subjects.$inferInsert;
