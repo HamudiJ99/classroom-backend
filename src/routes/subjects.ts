@@ -11,8 +11,8 @@ router.get("/", async (req, res) => {
     try {
         const { search, department, page = 1, limit = 10 } = req.query;
 
-        const currentPage = Math.max(1, parseInt(String(page), 10) || 1);
-        const limitPerPage = Math.min(Math.max(1, parseInt(String(limit), 10) || 10), 100);
+        const currentPage = Math.max(1, +page);
+        const limitPerPage = Math.max(1, +limit);
         const offset = (currentPage - 1) * limitPerPage;
 
         const filterConditions = [];
@@ -39,7 +39,6 @@ router.get("/", async (req, res) => {
             .from(subjects)
             .leftJoin(departments, eq(subjects.departmentId, departments.id))
             .where(whereClause);
-
 
         const totalCount = countResult[0]?.count ?? 0;
 
@@ -73,20 +72,16 @@ router.get("/", async (req, res) => {
     }
 });
 
-
-// Create a new subject
 router.post("/", async (req, res) => {
     try {
         const { departmentId, name, code, description } = req.body;
 
-        if (!departmentId || !name || !code) {
-            return res.status(400).json({ error: "departmentId, name and code are required" });
-        }
-
         const [createdSubject] = await db
             .insert(subjects)
             .values({ departmentId, name, code, description })
-            .returning();
+            .returning({ id: subjects.id });
+
+        if (!createdSubject) throw Error;
 
         res.status(201).json({ data: createdSubject });
     } catch (error) {
@@ -95,7 +90,7 @@ router.post("/", async (req, res) => {
     }
 });
 
-// Get subject details
+// Get subject details with counts
 router.get("/:id", async (req, res) => {
     try {
         const subjectId = Number(req.params.id);
@@ -119,62 +114,22 @@ router.get("/:id", async (req, res) => {
             return res.status(404).json({ error: "Subject not found" });
         }
 
-        res.status(200).json({ data: subject });
+        const classesCount = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(classes)
+            .where(eq(classes.subjectId, subjectId));
+
+        res.status(200).json({
+            data: {
+                subject,
+                totals: {
+                    classes: classesCount[0]?.count ?? 0,
+                },
+            },
+        });
     } catch (error) {
         console.error("GET /subjects/:id error:", error);
         res.status(500).json({ error: "Failed to fetch subject details" });
-    }
-});
-
-// Update subject
-router.put("/:id", async (req, res) => {
-    try {
-        const subjectId = Number(req.params.id);
-        const { departmentId, name, code, description } = req.body;
-
-        if (!Number.isFinite(subjectId)) {
-            return res.status(400).json({ error: "Invalid subject id" });
-        }
-
-        const [updatedSubject] = await db
-            .update(subjects)
-            .set({ departmentId, name, code, description })
-            .where(eq(subjects.id, subjectId))
-            .returning();
-
-        if (!updatedSubject) {
-            return res.status(404).json({ error: "Subject not found" });
-        }
-
-        res.status(200).json({ data: updatedSubject });
-    } catch (error) {
-        console.error("PUT /subjects/:id error:", error);
-        res.status(500).json({ error: "Failed to update subject" });
-    }
-});
-
-// Delete subject
-router.delete("/:id", async (req, res) => {
-    try {
-        const subjectId = Number(req.params.id);
-
-        if (!Number.isFinite(subjectId)) {
-            return res.status(400).json({ error: "Invalid subject id" });
-        }
-
-        const [deletedSubject] = await db
-            .delete(subjects)
-            .where(eq(subjects.id, subjectId))
-            .returning();
-
-        if (!deletedSubject) {
-            return res.status(404).json({ error: "Subject not found" });
-        }
-
-        res.status(200).json({ data: deletedSubject });
-    } catch (error) {
-        console.error("DELETE /subjects/:id error:", error);
-        res.status(500).json({ error: "Failed to delete subject (it might be linked to classes)" });
     }
 });
 
@@ -203,10 +158,7 @@ router.get("/:id/classes", async (req, res) => {
             .select({
                 ...getTableColumns(classes),
                 teacher: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    image: user.image,
+                    ...getTableColumns(user),
                 },
             })
             .from(classes)
@@ -253,17 +205,24 @@ router.get("/:id/users", async (req, res) => {
             id: user.id,
             name: user.name,
             email: user.email,
+            emailVerified: user.emailVerified,
             image: user.image,
             role: user.role,
+            imageCldPubId: user.imageCldPubId,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
         };
 
         const groupByFields = [
             user.id,
             user.name,
             user.email,
+            user.emailVerified,
             user.image,
             user.role,
+            user.imageCldPubId,
             user.createdAt,
+            user.updatedAt,
         ];
 
         const countResult =

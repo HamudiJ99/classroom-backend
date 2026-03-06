@@ -6,13 +6,13 @@ import { classes, departments, enrollments, subjects, user } from "../db/schema/
 
 const router = express.Router();
 
-// Get all classes with optional search, subject/teacher filters, and pagination
+// Get all classes with optional search, subject, teacher filters, and pagination
 router.get("/", async (req, res) => {
     try {
         const { search, subject, teacher, page = 1, limit = 10 } = req.query;
 
-        const currentPage = Math.max(1, parseInt(String(page), 10) || 1);
-        const limitPerPage = Math.min(Math.max(1, parseInt(String(limit), 10) || 10), 100);
+        const currentPage = Math.max(1, +page);
+        const limitPerPage = Math.max(1, +limit);
         const offset = (currentPage - 1) * limitPerPage;
 
         const filterConditions = [];
@@ -37,7 +37,6 @@ router.get("/", async (req, res) => {
         const whereClause =
             filterConditions.length > 0 ? and(...filterConditions) : undefined;
 
-        // Count query with joins
         const countResult = await db
             .select({ count: sql<number>`count(*)` })
             .from(classes)
@@ -47,7 +46,6 @@ router.get("/", async (req, res) => {
 
         const totalCount = countResult[0]?.count ?? 0;
 
-        // Data query with nested subject and teacher
         const classesList = await db
             .select({
                 ...getTableColumns(classes),
@@ -55,11 +53,7 @@ router.get("/", async (req, res) => {
                     ...getTableColumns(subjects),
                 },
                 teacher: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    image: user.image,
-                    role: user.role,
+                    ...getTableColumns(user),
                 },
             })
             .from(classes)
@@ -252,78 +246,6 @@ router.get("/:id/users", async (req, res) => {
     } catch (error) {
         console.error("GET /classes/:id/users error:", error);
         res.status(500).json({ error: "Failed to fetch class users" });
-    }
-});
-
-// Update class
-router.put("/:id", async (req, res) => {
-    try {
-        const id = Number(req.params.id);
-        const {
-            name,
-            teacherId,
-            subjectId,
-            capacity,
-            description,
-            status,
-            bannerUrl,
-            bannerCldPubId,
-            schedules,
-        } = req.body;
-
-        if (isNaN(id)) {
-            return res.status(400).json({ error: "Invalid class ID" });
-        }
-
-        const [updatedClass] = await db
-            .update(classes)
-            .set({
-                name,
-                teacherId,
-                subjectId,
-                capacity,
-                description,
-                status,
-                bannerUrl,
-                bannerCldPubId,
-                schedules,
-            })
-            .where(eq(classes.id, id))
-            .returning();
-
-        if (!updatedClass) {
-            return res.status(404).json({ error: "Class not found" });
-        }
-
-        res.status(200).json({ data: updatedClass });
-    } catch (error) {
-        console.error("PUT /classes/:id error:", error);
-        res.status(500).json({ error: "Failed to update class" });
-    }
-});
-
-// Delete class
-router.delete("/:id", async (req, res) => {
-    try {
-        const id = Number(req.params.id);
-
-        if (isNaN(id)) {
-            return res.status(400).json({ error: "Invalid class ID" });
-        }
-
-        const [deletedClass] = await db
-            .delete(classes)
-            .where(eq(classes.id, id))
-            .returning();
-
-        if (!deletedClass) {
-            return res.status(404).json({ error: "Class not found" });
-        }
-
-        res.status(200).json({ data: deletedClass });
-    } catch (error) {
-        console.error("DELETE /classes/:id error:", error);
-        res.status(500).json({ error: "Failed to delete class" });
     }
 });
 
