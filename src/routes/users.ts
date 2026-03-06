@@ -67,4 +67,101 @@ router.get("/", async (req, res) => {
     }
 });
 
+// Get user by ID
+router.get("/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+
+        const [userDetails] = await db
+            .select()
+            .from(user)
+            .where(eq(user.id, id));
+
+        if (!userDetails) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.status(200).json({ data: userDetails });
+    } catch (error) {
+        console.error("GET /users/:id error:", error);
+        res.status(500).json({ error: "Failed to fetch user" });
+    }
+});
+
+// Create user (Note: This is normally handled by Better Auth, but for Admin CRUD we might need it)
+router.post("/", async (req, res) => {
+    try {
+        const { name, email, role, image, imageCldPubId } = req.body;
+
+        if (!name || !email) {
+            return res.status(400).json({ error: "Name and email are required" });
+        }
+
+        // Generate a random ID for manual insertion if not using Better Auth's sign-up
+        const id = Math.random().toString(36).substring(2, 15);
+
+        const [newUser] = await db
+            .insert(user)
+            .values({
+                id,
+                name,
+                email,
+                role: role || "student",
+                image,
+                imageCldPubId,
+                emailVerified: false,
+            })
+            .returning();
+
+        res.status(201).json({ data: newUser });
+    } catch (error) {
+        console.error("POST /users error:", error);
+        res.status(500).json({ error: "Failed to create user" });
+    }
+});
+
+// Update user
+router.put("/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { name, email, role, image, imageCldPubId } = req.body;
+
+        const [updatedUser] = await db
+            .update(user)
+            .set({ name, email, role, image, imageCldPubId })
+            .where(eq(user.id, id))
+            .returning();
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.status(200).json({ data: updatedUser });
+    } catch (error) {
+        console.error("PUT /users/:id error:", error);
+        res.status(500).json({ error: "Failed to update user" });
+    }
+});
+
+// Delete user
+router.delete("/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+
+        const [deletedUser] = await db
+            .delete(user)
+            .where(eq(user.id, id))
+            .returning();
+
+        if (!deletedUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.status(200).json({ data: deletedUser });
+    } catch (error) {
+        console.error("DELETE /users/:id error:", error);
+        res.status(500).json({ error: "Failed to delete user" });
+    }
+});
+
 export default router;

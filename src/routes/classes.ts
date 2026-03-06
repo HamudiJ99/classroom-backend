@@ -255,4 +255,76 @@ router.get("/:id/users", async (req, res) => {
     }
 });
 
+// Update class
+router.put("/:id", async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const {
+            name,
+            teacherId,
+            subjectId,
+            capacity,
+            description,
+            status,
+            bannerUrl,
+            bannerCldPubId,
+            schedules,
+        } = req.body;
+
+        if (isNaN(id)) {
+            return res.status(400).json({ error: "Invalid class ID" });
+        }
+
+        const [updatedClass] = await db
+            .update(classes)
+            .set({
+                name,
+                teacherId,
+                subjectId,
+                capacity,
+                description,
+                status,
+                bannerUrl,
+                bannerCldPubId,
+                schedules,
+            })
+            .where(eq(classes.id, id))
+            .returning();
+
+        if (!updatedClass) {
+            return res.status(404).json({ error: "Class not found" });
+        }
+
+        res.status(200).json({ data: updatedClass });
+    } catch (error) {
+        console.error("PUT /classes/:id error:", error);
+        res.status(500).json({ error: "Failed to update class" });
+    }
+});
+
+// Delete class
+router.delete("/:id", async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+
+        if (isNaN(id)) {
+            return res.status(400).json({ error: "Invalid class ID" });
+        }
+
+        const [deletedClass] = await db
+            .delete(classes)
+            .where(eq(classes.id, id))
+            .returning();
+
+        if (!deletedClass) {
+            return res.status(404).json({ error: "Class not found" });
+        }
+
+        res.status(200).json({ data: deletedClass });
+    } catch (error) {
+        console.error("DELETE /classes/:id error:", error);
+        res.status(500).json({ error: "Failed to delete class" });
+    }
+});
+
 export default router;
