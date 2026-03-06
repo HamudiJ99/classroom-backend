@@ -6,13 +6,13 @@ import { classes, departments, enrollments, subjects, user } from "../db/schema/
 
 const router = express.Router();
 
-// Get all classes with optional search, subject, teacher filters, and pagination
+// Get all classes with optional search, subject/teacher filters, and pagination
 router.get("/", async (req, res) => {
     try {
         const { search, subject, teacher, page = 1, limit = 10 } = req.query;
 
-        const currentPage = Math.max(1, +page);
-        const limitPerPage = Math.max(1, +limit);
+        const currentPage = Math.max(1, parseInt(String(page), 10) || 1);
+        const limitPerPage = Math.min(Math.max(1, parseInt(String(limit), 10) || 10), 100);
         const offset = (currentPage - 1) * limitPerPage;
 
         const filterConditions = [];
@@ -37,6 +37,7 @@ router.get("/", async (req, res) => {
         const whereClause =
             filterConditions.length > 0 ? and(...filterConditions) : undefined;
 
+        // Count query with joins
         const countResult = await db
             .select({ count: sql<number>`count(*)` })
             .from(classes)
@@ -46,6 +47,7 @@ router.get("/", async (req, res) => {
 
         const totalCount = countResult[0]?.count ?? 0;
 
+        // Data query with nested subject and teacher
         const classesList = await db
             .select({
                 ...getTableColumns(classes),
@@ -53,7 +55,11 @@ router.get("/", async (req, res) => {
                     ...getTableColumns(subjects),
                 },
                 teacher: {
-                    ...getTableColumns(user),
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    image: user.image,
+                    role: user.role,
                 },
             })
             .from(classes)
